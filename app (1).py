@@ -2,13 +2,13 @@ from flask import Flask, request, jsonify
 import requests
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from datetime import datetime
-from dateutil.parser import parse
 from datetime import datetime, timedelta
+from dateutil.parser import parse
+import os
 
 # ================== CONFIG ==================
-API_TOKEN = "SECRET_TOKEN_123"
-SPREADSHEET_NAME = "Currency_update"
+API_TOKEN = os.environ.get("API_TOKEN", "YOUR_API_TOKEN")  # токен із змінних оточення
+SPREADSHEET_NAME = os.environ.get("SPREADSHEET_NAME", "Currency_update")
 NBU_API_URL = "https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange"
 
 # Google auth
@@ -16,12 +16,10 @@ SCOPE = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
 ]
-CREDS_FILE = "/home/4asdfcv/mysite/credentials.json"
-
+CREDS_FILE = os.environ.get("CREDS_FILE", "path/to/credentials.json")  # шлях до власного credentials.json
 # ============================================
 
 app = Flask(__name__)
-
 
 def get_google_sheet():
     creds = ServiceAccountCredentials.from_json_keyfile_name(CREDS_FILE, SCOPE)
@@ -57,7 +55,6 @@ def update_rates():
     if start_date > end_date:
         return jsonify({"error": "update_from > update_to"}), 400
 
-
     all_rows = []
     current_date = start_date
 
@@ -65,7 +62,6 @@ def update_rates():
         try:
             rates = fetch_rates(current_date)
             for r in rates:
-
                 if r["cc"] == "USD":
                     all_rows.append([
                         current_date.strftime("%Y-%m-%d"),
@@ -73,15 +69,12 @@ def update_rates():
                         r["rate"]
                     ])
         except Exception as e:
-
             print(f"Error fetching for {current_date}: {e}")
-
         current_date += timedelta(days=1)
 
     if all_rows:
         try:
             sheet = get_google_sheet()
-
             sheet.append_rows(all_rows)
         except Exception as e:
             return jsonify({"error": f"Google Sheets API error: {str(e)}"}), 500
